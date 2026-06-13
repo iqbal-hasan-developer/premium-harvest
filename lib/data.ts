@@ -1,6 +1,12 @@
 import type { DocumentData } from "firebase-admin/firestore";
 import { getAdminDb, isDemoFallbackAllowed } from "@/firebase/admin";
 import { demoGallery, demoProducts } from "@/lib/demo-data";
+import { getSupabaseGalleryImages } from "@/lib/supabase/gallery";
+import {
+  getSupabaseFeaturedProducts,
+  getSupabaseProductBySlug,
+  getSupabaseProducts
+} from "@/lib/supabase/products";
 import type { ContactMessage, CustomerOrder, GalleryImage, Product } from "@/types";
 
 function serialize<T extends { id: string }>(id: string, data: DocumentData): T {
@@ -8,32 +14,92 @@ function serialize<T extends { id: string }>(id: string, data: DocumentData): T 
   return { id, ...data, createdAt } as unknown as T;
 }
 
-export async function getProducts() {
+async function getFirebaseProducts() {
   const db = getAdminDb();
-  if (!db) return demoProducts;
+  if (!db) return [];
 
-  const snapshot = await db.collection("products").orderBy("createdAt", "desc").get();
-  if (snapshot.empty) return isDemoFallbackAllowed() ? demoProducts : [];
-  return snapshot.docs.map((doc) => serialize<Product>(doc.id, doc.data()));
+  try {
+    const snapshot = await db.collection("products").orderBy("createdAt", "desc").get();
+    return snapshot.docs.map((doc) => serialize<Product>(doc.id, doc.data()));
+  } catch (error) {
+    console.warn("Firebase products fallback read failed:", error);
+    return [];
+  }
+}
+
+async function getFirebaseGalleryImages() {
+  const db = getAdminDb();
+  if (!db) return [];
+
+  try {
+    const snapshot = await db.collection("gallery").orderBy("createdAt", "desc").get();
+    return snapshot.docs.map((doc) => serialize<GalleryImage>(doc.id, doc.data()));
+  } catch (error) {
+    console.warn("Firebase gallery fallback read failed:", error);
+    return [];
+  }
+}
+
+function finalProductFallback() {
+  return demoProducts;
+}
+
+function finalGalleryFallback() {
+  return demoGallery;
+}
+
+export async function getProducts() {
+  const supabaseProducts = await getSupabaseProducts();
+  if (supabaseProducts.length) return supabaseProducts;
+
+  const firebaseProducts = await getFirebaseProducts();
+  if (firebaseProducts.length) return firebaseProducts;
+
+  if (!isDemoFallbackAllowed()) {
+    console.warn("No Supabase or Firebase products found. Using demo product fallback during migration.");
+  }
+
+  return finalProductFallback();
 }
 
 export async function getFeaturedProducts() {
-  const products = await getProducts();
-  return products.filter((product) => product.featured).slice(0, 3);
+  const supabaseProducts = await getSupabaseFeaturedProducts();
+  if (supabaseProducts.length) return supabaseProducts;
+
+  const firebaseProducts = await getFirebaseProducts();
+  const firebaseFeatured = firebaseProducts.filter((product) => product.featured).slice(0, 3);
+  if (firebaseFeatured.length) return firebaseFeatured;
+
+  if (!isDemoFallbackAllowed()) {
+    console.warn("No Supabase or Firebase featured products found. Using demo featured fallback during migration.");
+  }
+
+  return demoProducts.filter((product) => product.featured).slice(0, 3);
 }
 
 export async function getProductBySlug(slug: string) {
-  const products = await getProducts();
-  return products.find((product) => product.slug === slug) ?? null;
+  const supabaseProduct = await getSupabaseProductBySlug(slug);
+  if (supabaseProduct) return supabaseProduct;
+
+  const firebaseProducts = await getFirebaseProducts();
+  const firebaseProduct = firebaseProducts.find((product) => product.slug === slug);
+  if (firebaseProduct) return firebaseProduct;
+
+  return finalProductFallback().find((product) => product.slug === slug) ?? null;
 }
 
 export async function getGalleryImages() {
-  const db = getAdminDb();
-  if (!db) return demoGallery;
+  const supabaseGallery = await getSupabaseGalleryImages();
+  if (supabaseGallery.length) return supabaseGallery;
 
-  const snapshot = await db.collection("gallery").orderBy("createdAt", "desc").get();
-  if (snapshot.empty) return isDemoFallbackAllowed() ? demoGallery : [];
-  return snapshot.docs.map((doc) => serialize<GalleryImage>(doc.id, doc.data()));
+  const firebaseGallery = await getFirebaseGalleryImages();
+  if (firebaseGallery.length) return firebaseGallery;
+
+  if (!isDemoFallbackAllowed()) {
+    console.warn("No Supabase or Firebase gallery images found. Using demo gallery fallback during migration.");
+  }
+
+  return finalGalleryFallback();
 }
 
 export async function getDashboardSnapshot() {

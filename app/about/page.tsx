@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { CheckCircle2, Leaf, Target } from "lucide-react";
 import Image from "next/image";
-import { imageUrls } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "আমাদের গল্প",

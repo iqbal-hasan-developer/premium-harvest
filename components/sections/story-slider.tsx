@@ -6,9 +6,9 @@ import { useEffect, useState } from "react";
 import { ButtonLink } from "@/components/ui/button";
 
 const slides = [
-  "https://images.unsplash.com/photo-1621293954908-907159247fc8?q=80&w=1200&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1553279768-865429fa0078?q=80&w=1200&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?q=80&w=1200&auto=format&fit=crop"
+  "/Slider1.webp",
+  "/Slider2.webp",
+  "/Slider3.webp"
 ];
 
 export function StorySlider() {
