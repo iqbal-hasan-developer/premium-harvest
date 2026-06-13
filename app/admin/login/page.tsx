@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signInWithEmailAndPassword } from "firebase/auth";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -9,7 +8,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { BrandLogo } from "@/components/layout/brand-logo";
-import { auth } from "@/firebase/client";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 const loginSchema = z.object({
   email: z.string().email("সঠিক ইমেইল দিন"),
@@ -29,8 +28,32 @@ export default function AdminLoginPage() {
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
 
   async function onSubmit(data: LoginInput) {
+    const supabase = createSupabaseBrowserClient();
+
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password);
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password
+      });
+
+      if (error || !authData.user) {
+        toast.error("ইমেইল বা পাসওয়ার্ড সঠিক নয়");
+        return;
+      }
+
+      const { data: adminProfile, error: adminError } = await supabase
+        .from("admin_users")
+        .select("id, is_active")
+        .eq("id", authData.user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (adminError || !adminProfile) {
+        await supabase.auth.signOut();
+        toast.error("এই অ্যাকাউন্টের অ্যাডমিন অ্যাক্সেস নেই।");
+        return;
+      }
+
       toast.success("স্বাগতম, অ্যাডমিন");
       router.replace(next);
     } catch {

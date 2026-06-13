@@ -101,3 +101,42 @@ Run `supabase/seed-products.sql` manually in the Supabase SQL Editor if you want
 Next recommended phase:
 
 Migrate admin authentication/session handling to Supabase Auth and verify `admin_users` checks, while keeping Firebase admin dashboard data flows untouched until auth is stable.
+
+## Admin Auth Migration Phase
+
+Completed in this phase:
+
+- Migrated `/admin/login` from Firebase Auth to Supabase Auth email/password sign-in.
+- Replaced the dashboard auth provider with a Supabase session provider.
+- Dashboard route protection now requires:
+  - an authenticated Supabase user
+  - a matching active row in `public.admin_users`
+  - `admin_users.is_active = true`
+- Non-admin Supabase users are signed out and denied access.
+- Dashboard logout now signs out through Supabase and redirects to `/admin/login`.
+- Added `lib/supabase/admin-auth.ts` for server-side admin checks in future phases.
+- Added `/admin` redirect to `/admin/login`.
+
+Routes affected:
+
+- `/admin`
+- `/admin/login`
+- `/dashboard`
+- `/dashboard/products`
+- `/dashboard/gallery`
+- `/dashboard/orders`
+- `/dashboard/contacts`
+
+Still not migrated:
+
+- Admin product CRUD.
+- Admin gallery manager.
+- Admin orders manager.
+- Admin contacts manager.
+- Public cart order submission.
+- Contact form submission.
+- Firebase files and Firebase data fallback paths.
+
+Next recommended phase:
+
+Migrate admin products CRUD to Supabase tables and Supabase Storage while keeping orders, contacts, and gallery management on the current implementation until each area is verified separately.

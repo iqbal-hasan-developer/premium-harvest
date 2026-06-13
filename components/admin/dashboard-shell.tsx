@@ -18,10 +18,10 @@ const links = [
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuth();
+  const { signOut } = useAuth();
 
   async function handleLogout() {
-    await logout();
+    await signOut();
     toast.success("লগআউট সম্পন্ন হয়েছে");
     router.replace("/admin/login");
   }
