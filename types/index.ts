@@ -26,10 +26,13 @@ export type GalleryImage = {
   createdAt?: string;
 };
 
-export type OrderStatus = "pending" | "confirmed" | "delivered";
+export type OrderStatus = "pending" | "confirmed" | "processing" | "shipped" | "delivered" | "cancelled";
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+export type ContactMessageStatus = "unread" | "read" | "archived";
 
 export type CustomerOrder = {
   id: string;
+  orderNumber?: string;
   productId: string;
   productName: string;
   source?: "cart" | string;
@@ -48,6 +51,8 @@ export type CustomerOrder = {
   paymentMethod?: "cod" | string;
   note?: string;
   status: OrderStatus;
+  orderStatus?: OrderStatus;
+  paymentStatus?: PaymentStatus;
   createdAt?: string;
 };
 
@@ -55,9 +60,11 @@ export type ContactMessage = {
   id: string;
   name: string;
   phone: string;
-  email: string;
+  email?: string | null;
   message: string;
+  status?: ContactMessageStatus;
   createdAt?: string;
+  updatedAt?: string;
 };
 
 export type AdminStat = {

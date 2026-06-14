@@ -1,10 +1,14 @@
 "use server";
 
-import { FieldValue } from "firebase-admin/firestore";
-import { getAdminDb } from "@/firebase/admin";
+import { createPublicContactMessage } from "@/lib/supabase/admin-contacts";
 import { contactSchema } from "@/lib/validations";
 
-export async function createContactMessage(_: unknown, formData: FormData) {
+export type ContactActionState = {
+  ok: boolean;
+  message: string;
+};
+
+export async function createContactMessage(_: unknown, formData: FormData): Promise<ContactActionState> {
   const parsed = contactSchema.safeParse({
     name: formData.get("name"),
     phone: formData.get("phone"),
@@ -15,22 +19,18 @@ export async function createContactMessage(_: unknown, formData: FormData) {
   if (!parsed.success) {
     return {
       ok: false,
-      message: parsed.error.issues[0]?.message || "তথ্য যাচাই করা যায়নি"
+      message: parsed.error.issues[0]?.message || "তথ্য যাচাই করা যায়নি।"
     };
   }
 
-  const db = getAdminDb();
-  if (!db) {
+  try {
+    await createPublicContactMessage(parsed.data);
+    return { ok: true, message: "আপনার বার্তা পাঠানো হয়েছে।" };
+  } catch (error) {
+    console.error("Supabase contact message insert failed:", error);
     return {
-      ok: true,
-      message: "ডেমো মোডে বার্তা গ্রহণ করা হয়েছে। Firebase সেট করলে Firestore-এ সংরক্ষণ হবে।"
+      ok: false,
+      message: error instanceof Error ? error.message : "বার্তা পাঠানো যায়নি। আবার চেষ্টা করুন।"
     };
   }
-
-  await db.collection("contacts").add({
-    ...parsed.data,
-    createdAt: FieldValue.serverTimestamp()
-  });
-
-  return { ok: true, message: "আপনার বার্তা পাঠানো হয়েছে।" };
 }

@@ -10,6 +10,9 @@ import { formatBanglaNumber, formatCurrency } from "@/utils/format";
 const statusLabels: Record<OrderStatus, string> = {
   pending: "Pending",
   confirmed: "Confirmed",
+  processing: "Processing",
+  shipped: "Shipped",
+  cancelled: "Cancelled",
   delivered: "Delivered"
 };
 

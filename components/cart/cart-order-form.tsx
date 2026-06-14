@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Search, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { createCartOrder } from "@/actions/orders";
@@ -12,9 +13,10 @@ type CartOrderFormProps = {
   subtotal: number;
   onCancel: () => void;
   onSuccess: () => void;
+  onClose: () => void;
 };
 
-const initialState = { ok: false, message: "" };
+const initialState = { ok: false, message: "", orderNumber: undefined as string | undefined };
 
 function SubmitOrderButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
@@ -31,7 +33,7 @@ function SubmitOrderButton({ disabled }: { disabled: boolean }) {
   );
 }
 
-export function CartOrderForm({ items, subtotal, onCancel, onSuccess }: CartOrderFormProps) {
+export function CartOrderForm({ items, subtotal, onCancel, onSuccess, onClose }: CartOrderFormProps) {
   const [state, formAction] = useActionState(createCartOrder, initialState);
   const successHandled = useRef(false);
   const hasInvalidCart = !items.length || subtotal <= 0 || items.some((item) => item.lineTotal !== item.selectedPackagePrice * item.quantity);
@@ -53,13 +55,30 @@ export function CartOrderForm({ items, subtotal, onCancel, onSuccess }: CartOrde
           <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-neutral-600">
             Premium Harvest টিম দ্রুত আপনার সাথে যোগাযোগ করবে।
           </p>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-[#2E7D32] px-6 text-sm font-black text-white transition hover:bg-[#1B5E20]"
-          >
-            বন্ধ করুন
-          </button>
+          {state.orderNumber ? (
+            <p className="mx-auto mt-3 rounded-full bg-[#E8F5E9] px-4 py-2 text-sm font-black text-[#1B5E20]">
+              Order: {state.orderNumber}
+            </p>
+          ) : null}
+          <div className="mt-6 grid gap-2 sm:grid-cols-2">
+            {state.orderNumber ? (
+              <Link
+                href={`/track-order?orderNumber=${encodeURIComponent(state.orderNumber)}`}
+                onClick={onClose}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#2E7D32] px-6 text-sm font-black text-white transition hover:bg-[#1B5E20]"
+              >
+                <Search className="size-4" />
+                অর্ডার ট্র্যাক করুন
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#E8F5E9] px-6 text-sm font-black text-[#1B5E20] transition hover:bg-[#d6edd8]"
+            >
+              বন্ধ করুন
+            </button>
+          </div>
         </div>
       </div>
     );

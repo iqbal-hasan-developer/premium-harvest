@@ -140,3 +140,343 @@ Still not migrated:
 Next recommended phase:
 
 Migrate admin products CRUD to Supabase tables and Supabase Storage while keeping orders, contacts, and gallery management on the current implementation until each area is verified separately.
+
+## Admin Product CRUD Migration Phase
+
+Completed in this phase:
+
+- Migrated admin product management from Firebase client CRUD to Supabase-backed server actions.
+- Added server-only product management helpers in `lib/supabase/admin-products.ts`.
+- Added `actions/admin-products.ts` for client-to-server admin product operations.
+- Product manager now loads Supabase products, packages, images, and categories.
+- Product create/update now writes to Supabase.
+- Product delete is soft behavior: products are marked `is_active = false` and `published = false`.
+- Product packages are stored in `product_packages`.
+- Removed packages from the UI are marked `is_active = false`.
+- Product images upload to Supabase Storage bucket `products`.
+- Uploaded image metadata is stored in `product_images`.
+- First uploaded image becomes primary if no active primary image exists.
+- Admin can mark a product image as primary.
+- Admin can deactivate image rows; storage cleanup is attempted when the URL belongs to the Supabase `products` bucket.
+
+Tables used:
+
+- `products`
+- `product_packages`
+- `product_images`
+- `categories`
+
+Storage bucket used:
+
+- `products`
+
+Product fields currently supported in admin UI:
+
+- name
+- slug
+- category
+- short description
+- description
+- base price
+- stock quantity
+- sort order
+- featured
+- published
+- active/inactive
+- multiple packages
+- image upload
+- primary image selection
+
+Still not migrated:
+
+- Admin gallery manager.
+- Admin orders manager.
+- Admin contacts manager.
+- Public cart order submission.
+- Contact form submission.
+- Firebase files and remaining Firebase dashboard data flows outside products.
+
+Next recommended phase:
+
+Migrate the admin gallery manager to Supabase tables and Supabase Storage bucket `gallery`.
+
+## Admin Product CRUD Fix Phase
+
+Fixed after initial product CRUD migration:
+
+- Product slugs are now normalized to URL-safe ASCII on the server before create/update.
+- Bangla or non-Latin product names now get a safe fallback slug such as `premium-mango-...`.
+- Duplicate slugs no longer hard-fail by default; the server appends a numeric suffix.
+- Public product reads now load products first, then active packages/images by product id.
+- Public products no longer disappear because of fragile embedded package/image filters.
+- Public product mapper now provides a fallback image when no active product image exists.
+- Product deactivate now sets:
+  - `products.is_active = false`
+  - `products.published = false`
+  - related `product_packages.is_active = false`
+  - related `product_images.is_active = false`
+- Server actions now log Supabase product save/delete/image errors server-side.
+- Admin slug field now sanitizes on blur and can be left blank for server-generated slug behavior.
+
+Delete behavior:
+
+- Delete in the admin UI means deactivate.
+- Products are not hard-deleted, preserving future order references.
+
+Remaining limitations:
+
+- Existing product detail URLs with an old slug stop working after changing the slug.
+- Image storage cleanup is still best-effort when deactivating individual image rows.
+- Admin gallery, orders, and contacts remain on their current Firebase flows.
+
+## Admin Gallery Upload Fix Phase
+
+Completed in this phase:
+
+- Added a Supabase-backed admin gallery data layer in `lib/supabase/admin-gallery.ts`.
+- Added admin gallery server actions in `actions/admin-gallery.ts`.
+- Dashboard gallery management now uses Supabase Storage bucket `gallery`.
+- Gallery uploads now insert rows into `public.gallery`.
+- Admin gallery list now reads Supabase gallery records, including drafts.
+- Published gallery records continue to appear on the public `/gallery` page through the existing public Supabase read path.
+- Upload validation now rejects non-image files and files larger than 5MB.
+- Upload and delete loading states now reset through client-side `finally` blocks.
+- Errors from Supabase upload, insert, read, and delete are returned to the admin UI.
+- Delete removes the `public.gallery` row and attempts storage cleanup when the public URL belongs to the Supabase `gallery` bucket.
+
+Upload method used:
+
+- Browser admin UI submits files to server actions.
+- Server actions verify active admin access through `requireAdmin`.
+- Server-only Supabase admin client uploads with the service role key.
+- `SUPABASE_SERVICE_ROLE_KEY` remains server-only and is not imported by client components.
+
+Storage bucket and path:
+
+- Bucket: `gallery`
+- Path convention: `gallery/YYYY-MM-DD/{timestamp}-{index}-{safe-file-name}`
+
+Table fields used:
+
+- `title`
+- `description`
+- `image_url`
+- `alt_text`
+- `height`
+- `sort_order`
+- `published`
+
+No additional SQL is required for this implementation because storage cleanup derives the object path from the Supabase public URL.
+
+Still not migrated:
+
+- Admin orders manager.
+- Admin contacts manager.
+- Public cart order submission.
+- Contact form submission.
+- Remaining Firebase files and fallback flows outside the migrated admin product/gallery areas.
+
+## Orders Migration Phase
+
+Completed in this phase:
+
+- Migrated cart checkout order submission from Firebase/Firestore to Supabase.
+- Migrated direct product order submission from Firebase/Firestore to Supabase.
+- Added server-only order helpers in `lib/supabase/admin-orders.ts`.
+- Replaced `actions/orders.ts` with Supabase-backed server actions.
+- Added admin order actions in `actions/admin-orders.ts`.
+- Dashboard order management now reads from Supabase `orders` and `order_items`.
+- Admins can update `order_status`.
+- Admins can update `payment_status`.
+- Admin order management includes search by order number, phone, customer, and item text.
+- Admin order detail view shows customer info, address, note, item lines, subtotal, delivery, discount, total, payment method, order status, and payment status.
+
+Tables used:
+
+- `orders`
+- `order_items`
+
+Order number behavior:
+
+- New orders use `PH-YYYYMMDD-XXXX`.
+- The server checks for collisions before insert and falls back to a timestamp suffix if needed.
+
+Security behavior:
+
+- Public checkout uses server actions and the server-only Supabase admin client.
+- Admin order reads and updates require active Supabase admin access through `requireAdmin`.
+- `SUPABASE_SERVICE_ROLE_KEY` remains server-only and is not imported by client components.
+
+Remaining limitations:
+
+- Public customer order tracking is not added yet.
+- Order items currently store submitted package weight and unit price; product package IDs are not linked until the cart/direct order UI carries package record IDs.
+- Dashboard overview may still use existing Firebase snapshot data until that screen is migrated separately.
+- Contact form and contacts manager still use the existing Firebase/current flow.
+
+Next recommended phase:
+
+Add customer order tracking by order number and phone, then migrate contact form/contact management to Supabase.
+
+## Dashboard Overview Supabase Fix Phase
+
+Completed in this phase:
+
+- Dashboard overview now reads Supabase dashboard data instead of browser-side Firebase/Firestore.
+- Overview order count now uses `public.orders`, matching the admin orders page.
+- Recent orders on the overview now use the same Supabase order mapping as order management.
+- Overview stat cards now use Supabase counts for:
+  - products
+  - orders
+  - gallery
+  - contact messages
+- Count query failures now surface as admin-visible errors instead of silently showing zero.
+- Recent orders now show order number, customer, phone, item summary, total, payment status, order status, and created date.
+- Added a link from overview recent orders to the full orders page.
+- Lightly polished the admin orders page table with stronger order/customer hierarchy and compact item chips.
+
+Security behavior:
+
+- Overview dashboard reads require active Supabase admin access through `requireAdmin`.
+- Supabase service role usage remains server-only.
+- Client components call server actions and do not import the service role key.
+
+Remaining limitations:
+
+- Contact form and contacts manager still need their dedicated Supabase migration.
+- Dashboard overview contact counts read Supabase `contact_messages`; if contact migration has not run yet, those counts may be lower than legacy Firebase contact data.
+- Dashboard overview product/gallery counts read Supabase tables and no longer count legacy Firebase-only records.
+
+## Contact Messages Migration Phase
+
+Completed in this phase:
+
+- Migrated public contact form submission from Firebase/Firestore to Supabase.
+- Contact form submissions now insert into `public.contact_messages`.
+- New contact messages are created with `status = 'unread'`.
+- Email is optional; name, phone, and message are validated server-side.
+- The form now clears only after a successful database insert.
+- Contact submission failures now return a visible error instead of fake/demo success.
+- Added server-only contact helpers in `lib/supabase/admin-contacts.ts`.
+- Added admin contact server actions in `actions/admin-contacts.ts`.
+- Dashboard contact messages now read real Supabase `contact_messages` rows.
+- Removed the Firebase `contacts` read path from the admin contacts manager.
+- Admins can mark messages as read, archive messages, and restore archived messages to unread.
+- Empty state now shows: `এখনও কোনো মেসেজ নেই।`
+- Admin contact message list is responsive with a desktop table and mobile cards.
+- Dashboard overview contact counts already read Supabase `contact_messages`; unread count is based on `status = 'unread'`.
+
+Tables used:
+
+- `contact_messages`
+
+Security behavior:
+
+- Public contact form uses a server action and the server-only Supabase admin client.
+- Public users are not granted select/update/delete access to contact messages.
+- No anon insert RLS policy is required because inserts go through the server-only service role after validation.
+- Admin contact reads and status updates require active Supabase admin access through `requireAdmin`.
+- `SUPABASE_SERVICE_ROLE_KEY` remains server-only and is not imported by client components.
+
+Remaining Firebase usage:
+
+- Firebase packages/config remain in the project while migration continues.
+- Legacy Firebase contact storage is no longer used by the public contact form or admin contacts manager.
+- Any remaining Firebase usage should be reviewed by feature area before removal.
+
+Next recommended phase:
+
+Audit remaining Firebase imports and migrate or remove them feature by feature once Supabase parity is confirmed.
+
+## Firebase Production Cleanup Audit
+
+Current audit result:
+
+- Firebase is not safe to remove yet.
+- Production-facing writes and admin management are now Supabase-backed for products, gallery, orders, and contact messages.
+- Public storefront reads are Supabase-first, but `lib/data.ts` still keeps Firebase fallback reads for products and gallery before falling back to demo data.
+- Build/static generation can still print `Firebase Admin SDK is not configured. Using local demo data fallback.` when the Firebase fallback path is reached locally.
+
+Fully migrated to Supabase:
+
+- Supabase Auth/admin access for dashboard routes.
+- Admin dashboard overview counts and recent orders.
+- Admin product CRUD and product image management.
+- Admin gallery upload/list/delete.
+- Public gallery reads, as the primary data source.
+- Cart checkout and direct product order submission.
+- Admin order management and order/payment status updates.
+- Public contact form submission.
+- Admin contact message management and message status updates.
+
+Still Firebase-dependent or Firebase-referencing:
+
+- `lib/data.ts`
+  - imports `firebase-admin/firestore`
+  - imports `@/firebase/admin`
+  - uses Firebase fallback reads for `products` and `gallery`
+  - exports legacy `getDashboardSnapshot`, which still reads Firebase collections but is not currently imported by dashboard pages
+- `firebase/admin.ts`
+  - server-only Firebase Admin SDK helper for fallback reads and demo-fallback gating
+- `firebase/client.ts`
+  - Firebase browser client helper used by legacy manager components
+- `components/admin/gallery-manager.tsx`
+  - legacy Firebase gallery manager, not used by the active dashboard gallery route
+- `components/admin/orders-manager.tsx`
+  - legacy Firebase orders manager, not used by the active dashboard orders route
+- `next.config.ts`
+  - still allows Firebase Storage image hosts so legacy Firebase image URLs can render
+- `.env.example`
+  - still documents Firebase browser and Admin SDK variables
+- `firebase.json`, `firestore.rules`, and `storage.rules`
+  - still exist for the legacy Firebase project setup
+- `package.json`
+  - still includes `firebase` and `firebase-admin`
+
+Safe to remove later after confirmation:
+
+- Legacy unused admin components:
+  - `components/admin/gallery-manager.tsx`
+  - `components/admin/orders-manager.tsx`
+- Legacy `getDashboardSnapshot` from `lib/data.ts`, if no external code imports it.
+- Firebase setup docs and rule files, once all fallbacks are removed and legacy Firebase data/images are no longer needed.
+
+Risky to remove now:
+
+- `firebase` and `firebase-admin` packages, because current source files still import them.
+- `firebase/admin.ts`, because `lib/data.ts` still imports it.
+- Firebase Storage image host allow-list, if any old product/gallery image URLs still point to Firebase Storage.
+- Firebase env references, while the fallback path remains in source.
+
+Recommended cleanup path:
+
+1. Confirm Supabase contains all production product and gallery records, including image URLs.
+2. Decide whether demo data should remain as the only non-Supabase fallback.
+3. Remove Firebase fallback reads from `lib/data.ts`.
+4. Delete legacy unused Firebase admin manager components.
+5. Delete `firebase/admin.ts` and `firebase/client.ts`.
+6. Remove Firebase env examples, Firebase rule files, and Firebase image host allow-list.
+7. Uninstall `firebase` and `firebase-admin`, then rebuild.
+
+## Customer Order Tracking Phase
+
+Completed in this phase:
+
+- Added public `/track-order` route.
+- Customers can track an order with order number and phone number.
+- Tracking uses Supabase `orders` and `order_items`.
+- Tracking lookup requires both exact `order_number` and matching `phone`.
+- Public tracking does not list or expose unrelated orders.
+- Added server action in `actions/track-order.ts`.
+- Added public tracking helper in `lib/supabase/admin-orders.ts`.
+- Tracking results show order number, customer name, phone, safe address summary, order status, payment status, items, package weight, quantity, subtotal, delivery charge, total, and created date.
+- Added WhatsApp support CTA: `সাপোর্টে কথা বলুন`.
+- Added public nav/footer link through `siteConfig.navItems`.
+- Direct product order success now shows order number and a tracking button.
+- Cart order success now shows order number and a tracking button.
+
+Security behavior:
+
+- Public tracking uses a server action and the server-only Supabase admin client.
+- `SUPABASE_SERVICE_ROLE_KEY` is not imported by client components.
+- A user only receives order details when both submitted fields match the same order row.

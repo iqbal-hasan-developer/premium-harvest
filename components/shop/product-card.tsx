@@ -15,8 +15,8 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <>
-      <article className="group overflow-hidden rounded-2xl border border-[#E8F5E9] bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-green-900/10">
-        <Link href={`/shop/${product.slug}`} className="relative block aspect-[4/3] overflow-hidden bg-[#E8F5E9]">
+      <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[#E8F5E9] bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-green-900/10">
+        <Link href={`/shop/${product.slug}`} className="relative block aspect-[4/3] shrink-0 overflow-hidden bg-[#E8F5E9]">
           <Image
             src={productImage}
             alt={product.name}
@@ -25,17 +25,15 @@ export function ProductCard({ product }: { product: Product }) {
             className="object-cover transition duration-500 group-hover:scale-105"
           />
         </Link>
-        <div className="p-4">
+        <div className="flex flex-1 flex-col p-4">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-bold text-[#17351a]">{product.name}</h3>
-              <p className="mt-1 text-sm text-neutral-600">{product.shortDescription}</p>
-            </div>
+            <h3 className="min-w-0 flex-1 line-clamp-2 text-lg font-bold text-[#17351a]">{product.name}</h3>
             <p className="shrink-0 rounded-full bg-[#E8F5E9] px-3 py-1 text-sm font-bold text-[#1B5E20]">
               {formatCurrency(getStartingPrice(product))} থেকে
             </p>
           </div>
-          <div className="mt-5 grid gap-2 lg:grid-cols-2">
+          <p className="mt-2 line-clamp-3 w-full text-sm leading-6 text-neutral-600">{product.shortDescription}</p>
+          <div className="mt-auto grid gap-2 pt-5 lg:grid-cols-2">
             <ButtonLink
               href={`/shop/${product.slug}`}
               variant="primary"

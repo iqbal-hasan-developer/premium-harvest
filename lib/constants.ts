@@ -11,6 +11,7 @@ export const siteConfig = {
     { label: "শপ", href: "/shop" },
     { label: "গ্যালারি", href: "/gallery" },
     { label: "আমাদের গল্প", href: "/about" },
+    { label: "অর্ডার ট্র্যাক", href: "/track-order" },
     { label: "যোগাযোগ", href: "/contact" }
   ],
   socialLinks: {

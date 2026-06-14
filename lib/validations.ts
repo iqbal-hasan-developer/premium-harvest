@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const orderSchema = z.object({
   productId: z.string().min(1),
+  productSlug: z.string().optional(),
+  productImage: z.string().optional(),
   productName: z.string().min(1),
   selectedPackage: z.string().min(1, "প্যাকেজ নির্বাচন করুন"),
   packageWeight: z.string().min(1, "প্যাকেজ ওজন পাওয়া যায়নি"),
@@ -38,10 +40,13 @@ export const cartOrderSchema = z.object({
 });
 
 export const contactSchema = z.object({
-  name: z.string().min(2, "নাম লিখুন"),
-  phone: z.string().min(8, "সঠিক ফোন নম্বর দিন"),
-  email: z.string().email("সঠিক ইমেইল দিন"),
-  message: z.string().min(10, "বার্তা একটু বিস্তারিত লিখুন")
+  name: z.string().trim().min(2, "নাম লিখুন"),
+  phone: z.string().trim().min(8, "সঠিক ফোন নম্বর দিন"),
+  email: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().trim().email("সঠিক ইমেইল দিন").optional()
+  ),
+  message: z.string().trim().min(10, "বার্তা একটু বিস্তারিত লিখুন")
 });
 
 export type OrderInput = z.infer<typeof orderSchema>;

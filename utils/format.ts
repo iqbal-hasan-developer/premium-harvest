@@ -29,11 +29,15 @@ export function getStartingPrice(product: Product) {
 }
 
 export function slugify(input: string) {
-  return input
+  const slug = input
     .trim()
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+
+  return slug || `premium-mango-${Date.now().toString(36)}`;
 }
 
 export function whatsappLink(message: string) {

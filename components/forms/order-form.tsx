@@ -1,11 +1,11 @@
 "use client";
 
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Search } from "lucide-react";
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { toast } from "sonner";
+import { createOrder } from "@/actions/orders";
 import { Button } from "@/components/ui/button";
-import { db } from "@/firebase/client";
 import type { Product, ProductPackage } from "@/types";
 import { formatBanglaNumber, formatCurrency } from "@/utils/format";
 
@@ -18,47 +18,93 @@ type OrderFormProps = {
   onSuccess?: () => void;
 };
 
-export function OrderForm({ product, selectedPackage, quantity, deliveryCharge = 0, totalPrice, onSuccess }: OrderFormProps) {
+export function OrderForm({
+  product,
+  selectedPackage,
+  quantity,
+  deliveryCharge = 0,
+  totalPrice,
+  onSuccess
+}: OrderFormProps) {
   const [submitting, setSubmitting] = useState(false);
+  const [successOrderNumber, setSuccessOrderNumber] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
-    const orderPayload = {
-      productId: product.id,
-      productName: product.name,
-      selectedPackage: `${selectedPackage.weight} প্যাক - ${selectedPackage.price} টাকা`,
-      packageWeight: selectedPackage.weight,
-      packagePrice: selectedPackage.price,
-      customerName: String(formData.get("customerName") || "").trim(),
-      phone: String(formData.get("phone") || "").trim(),
-      address: String(formData.get("address") || "").trim(),
-      quantity,
-      deliveryCharge,
-      totalPrice,
-      note: String(formData.get("note") || "").trim(),
-      status: "pending",
-      createdAt: serverTimestamp()
-    };
+    formData.set("productId", product.id);
+    formData.set("productSlug", product.slug);
+    formData.set("productImage", product.images[0] || "");
+    formData.set("productName", product.name);
+    formData.set("selectedPackage", `${selectedPackage.weight} প্যাক - ${selectedPackage.price} টাকা`);
+    formData.set("packageWeight", selectedPackage.weight);
+    formData.set("packagePrice", String(selectedPackage.price));
+    formData.set("quantity", String(quantity));
+    formData.set("deliveryCharge", String(deliveryCharge));
+    formData.set("totalPrice", String(totalPrice));
 
-    if (orderPayload.customerName.length < 2 || orderPayload.phone.length < 8 || orderPayload.address.length < 8) {
+    const customerName = String(formData.get("customerName") || "").trim();
+    const phone = String(formData.get("phone") || "").trim();
+    const address = String(formData.get("address") || "").trim();
+
+    if (customerName.length < 2 || phone.length < 8 || address.length < 8) {
       toast.error("নাম, ফোন নম্বর ও পূর্ণ ঠিকানা সঠিকভাবে লিখুন।");
       setSubmitting(false);
       return;
     }
 
     try {
-      await addDoc(collection(db, "orders"), orderPayload);
-      toast.success("আপনার অর্ডার সফলভাবে জমা হয়েছে।");
-      onSuccess?.();
+      const result = await createOrder(null, formData);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+
+      toast.success(result.orderNumber ? `অর্ডার সফল হয়েছে: ${result.orderNumber}` : result.message);
+      setSuccessOrderNumber(result.orderNumber || "");
     } catch (error) {
       console.error("Failed to create order", error);
-      toast.error("অর্ডার সংরক্ষণ করা যায়নি। Firestore rules deploy করা আছে কিনা যাচাই করুন।");
+      toast.error("অর্ডার সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (successOrderNumber) {
+    return (
+      <div className="grid gap-5 text-center">
+        <div className="mx-auto grid size-16 place-items-center rounded-full bg-[#E8F5E9] text-[#1B5E20]">
+          <CheckCircle2 className="size-8" />
+        </div>
+        <div>
+          <h3 className="text-2xl font-black text-[#17351a]">অর্ডার গ্রহণ করা হয়েছে</h3>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-neutral-600">
+            Premium Harvest টিম দ্রুত আপনার সাথে যোগাযোগ করবে।
+          </p>
+        </div>
+        <p className="mx-auto rounded-full bg-[#E8F5E9] px-4 py-2 text-sm font-black text-[#1B5E20]">
+          Order: {successOrderNumber}
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Link
+            href={`/track-order?orderNumber=${encodeURIComponent(successOrderNumber)}`}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#2E7D32] px-5 text-sm font-black text-white transition hover:bg-[#1B5E20]"
+          >
+            <Search className="size-4" />
+            অর্ডার ট্র্যাক করুন
+          </Link>
+          <button
+            type="button"
+            onClick={onSuccess}
+            className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#E8F5E9] px-5 text-sm font-black text-[#1B5E20] transition hover:bg-[#d6edd8]"
+          >
+            বন্ধ করুন
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -1,17 +1,21 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { Edit, Loader2, Plus, Trash2 } from "lucide-react";
+import { Edit, Loader2, Plus, Star, Trash2 } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { db, storage } from "@/firebase/client";
-import { demoProducts } from "@/lib/demo-data";
-import type { Product, ProductPackage } from "@/types";
+import {
+  deleteAdminProduct,
+  deleteAdminProductImage,
+  getAdminProductManagerData,
+  saveAdminProduct,
+  setPrimaryAdminProductImage
+} from "@/actions/admin-products";
+import type { AdminCategory, AdminProduct } from "@/lib/supabase/admin-products";
+import type { ProductPackage } from "@/types";
 import { formatCurrency, getProductPackages, getStartingPrice, slugify } from "@/utils/format";
 
 const defaultPackages: ProductPackage[] = [
@@ -21,51 +25,128 @@ const defaultPackages: ProductPackage[] = [
 ];
 
 const packageSchema = z.object({
+  id: z.string().optional(),
+  label: z.string().optional(),
   weight: z.string().min(1, "ওজন লিখুন"),
-  price: z.coerce.number().int().min(1, "দাম লিখুন"),
-  recommended: z.boolean().default(false)
+  price: z.coerce.number().min(0, "দাম লিখুন"),
+  compareAtPrice: z.coerce.number().min(0).optional(),
+  stockQuantity: z.coerce.number().min(0).optional(),
+  sortOrder: z.coerce.number().min(0).default(0),
+  recommended: z.boolean().default(false),
+  isActive: z.boolean().default(true)
 });
 
 const productSchema = z.object({
+  categoryId: z.string().optional(),
   name: z.string().min(2),
-  shortDescription: z.string().min(8),
-  description: z.string().min(20),
+  slug: z.string().optional().default(""),
+  shortDescription: z.string().min(4),
+  description: z.string().min(8),
+  basePrice: z.coerce.number().min(0),
+  stockQuantity: z.coerce.number().min(0).default(0),
+  sortOrder: z.coerce.number().min(0).default(0),
   featured: z.boolean().default(false),
-  stock: z.coerce.number().min(0).optional(),
+  published: z.boolean().default(false),
+  isActive: z.boolean().default(true),
   packages: z.array(packageSchema).min(1, "কমপক্ষে একটি প্যাকেজ দিন")
 });
 
 type ProductFormInput = z.input<typeof productSchema>;
 type ProductInput = z.output<typeof productSchema>;
 
+function packageDefaults() {
+  return defaultPackages.map((item, index) => ({
+    id: undefined,
+    label: "",
+    weight: item.weight,
+    price: item.price,
+    compareAtPrice: undefined,
+    stockQuantity: 0,
+    sortOrder: index,
+    recommended: Boolean(item.recommended),
+    isActive: true
+  }));
+}
+
+function productDefaults(): ProductFormInput {
+  return {
+    categoryId: "",
+    name: "",
+    slug: "",
+    shortDescription: "",
+    description: "",
+    basePrice: 0,
+    stockQuantity: 0,
+    sortOrder: 0,
+    featured: false,
+    published: false,
+    isActive: true,
+    packages: packageDefaults()
+  };
+}
+
+function productToForm(product: AdminProduct): ProductFormInput {
+  return {
+    categoryId: product.categoryId || "",
+    name: product.name,
+    slug: product.slug,
+    shortDescription: product.shortDescription,
+    description: product.description,
+    basePrice: product.basePrice,
+    stockQuantity: product.stockQuantity,
+    sortOrder: product.sortOrder,
+    featured: product.featured,
+    published: product.published,
+    isActive: product.isActive,
+    packages: product.packageRecords.length
+      ? product.packageRecords.map((item) => ({
+          id: item.id,
+          label: item.label || "",
+          weight: item.weight,
+          price: item.price,
+          compareAtPrice: item.compareAtPrice,
+          stockQuantity: item.stockQuantity ?? 0,
+          sortOrder: item.sortOrder,
+          recommended: item.recommended,
+          isActive: item.isActive
+        }))
+      : [{ id: undefined, label: "", weight: "৫ কেজি", price: product.price, sortOrder: 0, recommended: true, isActive: true }]
+  };
+}
+
 export function ProductManager() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [editing, setEditing] = useState<Product | null>(null);
+  const [products, setProducts] = useState<AdminProduct[]>([]);
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
+  const [editing, setEditing] = useState<AdminProduct | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
+  const [pending, startTransition] = useTransition();
   const {
     register,
     reset,
     handleSubmit,
     control,
+    setValue,
+    getValues,
     formState: { errors }
   } = useForm<ProductFormInput, unknown, ProductInput>({
     resolver: zodResolver(productSchema),
-    defaultValues: { featured: false, stock: 0, packages: defaultPackages }
+    defaultValues: productDefaults()
   });
   const { fields, append, remove } = useFieldArray({
     control,
     name: "packages"
   });
-
   async function loadProducts() {
     setLoading(true);
     try {
-      const snapshot = await getDocs(query(collection(db, "products"), orderBy("createdAt", "desc")));
-      setProducts(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as Product));
-    } catch {
-      setProducts(demoProducts);
+      const data = await getAdminProductManagerData();
+      setProducts(data.products);
+      setCategories(data.categories);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "পণ্য লোড করা যায়নি");
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -75,83 +156,101 @@ export function ProductManager() {
     void loadProducts();
   }, []);
 
-  async function uploadImages(productName: string) {
-    if (!files?.length) return editing?.images ?? [];
-    const uploads = Array.from(files).map(async (file) => {
-      const imageRef = ref(storage, `products/${Date.now()}-${productName}-${file.name}`);
-      await uploadBytes(imageRef, file);
-      return getDownloadURL(imageRef);
-    });
-    const uploaded = await Promise.all(uploads);
-    return editing ? [...editing.images, ...uploaded] : uploaded;
+  function syncSlugFromName() {
+    const slugValue = getValues("slug");
+    const nameValue = getValues("name");
+    if (!slugValue && nameValue) {
+      setValue("slug", slugify(nameValue), { shouldValidate: true });
+    }
+  }
+
+  function sanitizeSlugField() {
+    const slugValue = getValues("slug");
+    const nameValue = getValues("name");
+    setValue("slug", slugify(slugValue || nameValue), { shouldValidate: true });
   }
 
   async function onSubmit(data: ProductInput) {
     setSaving(true);
     try {
-      const images = await uploadImages(data.name);
-      const packages = data.packages.map((item) => ({
-        weight: item.weight.trim(),
-        price: item.price,
-        recommended: Boolean(item.recommended)
-      }));
-      const payload = {
-        ...data,
-        packages,
-        price: packages[0]?.price ?? 0,
-        slug: slugify(data.name),
-        images
-      };
+      const formData = new FormData();
+      if (editing) formData.set("productId", editing.id);
+      formData.set("categoryId", data.categoryId || "");
+      formData.set("name", data.name);
+      formData.set("slug", data.slug || "");
+      formData.set("shortDescription", data.shortDescription);
+      formData.set("description", data.description);
+      formData.set("basePrice", String(data.basePrice));
+      formData.set("stockQuantity", String(data.stockQuantity));
+      formData.set("sortOrder", String(data.sortOrder));
+      formData.set("featured", String(data.featured));
+      formData.set("published", String(data.published));
+      formData.set("isActive", String(data.isActive));
+      formData.set("packages", JSON.stringify(data.packages.map((item, index) => ({ ...item, sortOrder: item.sortOrder ?? index }))));
 
-      if (editing) {
-        await updateDoc(doc(db, "products", editing.id), payload);
-        toast.success("পণ্য আপডেট হয়েছে");
-      } else {
-        await addDoc(collection(db, "products"), {
-          ...payload,
-          createdAt: serverTimestamp()
-        });
-        toast.success("নতুন পণ্য যোগ হয়েছে");
+      Array.from(files || []).forEach((file) => formData.append("images", file));
+
+      const result = await saveAdminProduct(null, formData);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
       }
 
+      toast.success(result.message);
       setFiles(null);
       setEditing(null);
-      reset({ featured: false, stock: 0, packages: defaultPackages });
+      reset(productDefaults());
       await loadProducts();
-    } catch {
-      toast.error("পণ্য সংরক্ষণ করা যায়নি। Firebase config ও rules যাচাই করুন।");
     } finally {
       setSaving(false);
     }
   }
 
-  async function removeProduct(product: Product) {
-    if (!confirm(`${product.name} মুছে ফেলবেন?`)) return;
-    try {
-      await deleteDoc(doc(db, "products", product.id));
-      toast.success("পণ্য মুছে ফেলা হয়েছে");
+  async function removeProduct(product: AdminProduct) {
+    if (!confirm(`${product.name} inactive করবেন?`)) return;
+    const result = await deleteAdminProduct(product.id);
+    if (result.ok) {
+      toast.success(result.message);
       await loadProducts();
-    } catch {
-      toast.error("পণ্য মুছে ফেলা যায়নি");
+    } else {
+      toast.error(result.message);
     }
   }
 
-  function startEdit(product: Product) {
+  function startEdit(product: AdminProduct) {
     setEditing(product);
-    reset({
-      name: product.name,
-      shortDescription: product.shortDescription,
-      description: product.description,
-      featured: product.featured,
-      stock: product.stock ?? 0,
-      packages: product.packages?.length ? product.packages : [{ weight: "৫ কেজি", price: product.price, recommended: true }]
-    });
+    setFiles(null);
+    reset(productToForm(product));
   }
 
   function clearForm() {
     setEditing(null);
     setFiles(null);
-    reset({ featured: false, stock: 0, packages: defaultPackages });
+    reset(productDefaults());
+  }
+
+  function deleteImage(imageId: string) {
+    startTransition(async () => {
+      const result = await deleteAdminProductImage(imageId);
+      if (result.ok) {
+        toast.success(result.message);
+        await loadProducts();
+      } else {
+        toast.error(result.message);
+      }
+    });
+  }
+
+  function setPrimaryImage(imageId: string, productId: string) {
+    startTransition(async () => {
+      const result = await setPrimaryAdminProductImage(imageId, productId);
+      if (result.ok) {
+        toast.success(result.message);
+        await loadProducts();
+      } else {
+        toast.error(result.message);
+      }
+    });
   }
 
   const previewCount = useMemo(() => files?.length ?? 0, [files]);
@@ -162,7 +261,7 @@ export function ProductManager() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-[#17351a]">{editing ? "পণ্য এডিট" : "নতুন পণ্য"}</h2>
-            <p className="mt-1 text-sm text-neutral-500">প্রতিটি পণ্যের জন্য একাধিক প্যাকেজ যোগ করুন।</p>
+            <p className="mt-1 text-sm text-neutral-500">প্রতিটি পণ্যের জন্য একাধিক প্যাকেজ ও ছবি যোগ করুন।</p>
           </div>
           {editing ? (
             <button type="button" onClick={clearForm} className="rounded-full bg-[#E8F5E9] px-3 py-1.5 text-xs font-bold text-[#1B5E20]">
@@ -172,22 +271,53 @@ export function ProductManager() {
         </div>
 
         <div className="mt-4 grid gap-3">
-          <input {...register("name")} placeholder="পণ্যের নাম" className="rounded-xl border border-[#E8F5E9] px-4 py-3 outline-none focus:border-[#2E7D32]" />
+          <input
+            {...register("name", { onBlur: syncSlugFromName })}
+            placeholder="পণ্যের নাম"
+            className="rounded-xl border border-[#E8F5E9] px-4 py-3 outline-none focus:border-[#2E7D32]"
+          />
           {errors.name ? <p className="text-xs text-red-600">নাম লিখুন</p> : null}
-
-          <input {...register("shortDescription")} placeholder="সংক্ষিপ্ত বিবরণ" className="rounded-xl border border-[#E8F5E9] px-4 py-3 outline-none focus:border-[#2E7D32]" />
-          <textarea {...register("description")} rows={4} placeholder="বিস্তারিত বিবরণ" className="rounded-xl border border-[#E8F5E9] px-4 py-3 outline-none focus:border-[#2E7D32]" />
-          <input {...register("stock")} type="number" placeholder="স্টক" className="rounded-xl border border-[#E8F5E9] px-4 py-3 outline-none focus:border-[#2E7D32]" />
+          <input
+            {...register("slug", { onBlur: sanitizeSlugField })}
+            placeholder="slug"
+            className="rounded-xl border border-[#E8F5E9] px-4 py-3 outline-none focus:border-[#2E7D32]"
+          />
+          <p className="text-xs text-neutral-500">Slug lowercase English letter, number and hyphen diye hobe.</p>
+          {errors.slug ? <p className="text-xs text-red-600">slug লিখুন</p> : null}
+          <select {...register("categoryId")} className="rounded-xl border border-[#E8F5E9] px-4 py-3 outline-none focus:border-[#2E7D32]">
+            <option value="">Category নেই</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          <input
+            {...register("shortDescription")}
+            placeholder="সংক্ষিপ্ত বিবরণ"
+            className="rounded-xl border border-[#E8F5E9] px-4 py-3 outline-none focus:border-[#2E7D32]"
+          />
+          <textarea
+            {...register("description")}
+            rows={4}
+            placeholder="বিস্তারিত বিবরণ"
+            className="rounded-xl border border-[#E8F5E9] px-4 py-3 outline-none focus:border-[#2E7D32]"
+          />
+          <div className="grid gap-2 sm:grid-cols-3">
+            <input {...register("basePrice")} type="number" placeholder="Base price" className="rounded-xl border border-[#E8F5E9] px-4 py-3 outline-none focus:border-[#2E7D32]" />
+            <input {...register("stockQuantity")} type="number" placeholder="Stock" className="rounded-xl border border-[#E8F5E9] px-4 py-3 outline-none focus:border-[#2E7D32]" />
+            <input {...register("sortOrder")} type="number" placeholder="Sort" className="rounded-xl border border-[#E8F5E9] px-4 py-3 outline-none focus:border-[#2E7D32]" />
+          </div>
 
           <div className="rounded-2xl border border-[#E8F5E9] p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="font-bold text-[#17351a]">প্যাকেজ</h3>
-                <p className="text-xs text-neutral-500">ওজন ও দাম লিখুন, যেমন ১০ কেজি - ৮৫০ টাকা।</p>
+                <p className="text-xs text-neutral-500">ওজন, দাম এবং recommended badge সেট করুন।</p>
               </div>
               <button
                 type="button"
-                onClick={() => append({ weight: "", price: 0, recommended: false })}
+                onClick={() => append({ weight: "", price: 0, compareAtPrice: undefined, stockQuantity: 0, sortOrder: fields.length, recommended: false, isActive: true })}
                 className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-[#E8F5E9] px-3 text-xs font-bold text-[#1B5E20]"
               >
                 <Plus className="size-3.5" />
@@ -198,10 +328,10 @@ export function ProductManager() {
             <div className="mt-3 grid gap-3">
               {fields.map((field, index) => (
                 <div key={field.id} className="grid gap-2 rounded-xl bg-[#F7FBF7] p-3">
-                  <div className="grid gap-2 sm:grid-cols-[1fr_120px_auto]">
+                  <div className="grid gap-2 sm:grid-cols-[1fr_100px_auto]">
                     <input
                       {...register(`packages.${index}.weight`)}
-                      placeholder="ওজন, যেমন ৫ কেজি"
+                      placeholder="ওজন"
                       className="rounded-lg border border-[#E8F5E9] px-3 py-2 text-sm outline-none focus:border-[#2E7D32]"
                     />
                     <input
@@ -220,25 +350,63 @@ export function ProductManager() {
                       <Trash2 className="size-4" />
                     </button>
                   </div>
-                  <label className="flex items-center gap-2 text-xs font-semibold text-[#1B5E20]">
-                    <input {...register(`packages.${index}.recommended`)} type="checkbox" />
-                    জনপ্রিয় ব্যাজ দেখান
-                  </label>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <input {...register(`packages.${index}.label`)} placeholder="Label" className="rounded-lg border border-[#E8F5E9] px-3 py-2 text-sm outline-none focus:border-[#2E7D32]" />
+                    <input {...register(`packages.${index}.compareAtPrice`)} type="number" placeholder="Compare price" className="rounded-lg border border-[#E8F5E9] px-3 py-2 text-sm outline-none focus:border-[#2E7D32]" />
+                    <input {...register(`packages.${index}.stockQuantity`)} type="number" placeholder="Stock" className="rounded-lg border border-[#E8F5E9] px-3 py-2 text-sm outline-none focus:border-[#2E7D32]" />
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-[#1B5E20]">
+                      <input {...register(`packages.${index}.recommended`)} type="checkbox" />
+                      জনপ্রিয়
+                    </label>
+                    <label className="flex items-center gap-2 text-xs font-semibold text-[#1B5E20]">
+                      <input {...register(`packages.${index}.isActive`)} type="checkbox" />
+                      Active
+                    </label>
+                  </div>
                 </div>
               ))}
             </div>
             {errors.packages ? <p className="mt-2 text-xs text-red-600">কমপক্ষে একটি সঠিক প্যাকেজ দিন</p> : null}
           </div>
 
-          <label className="flex items-center gap-2 rounded-xl bg-[#E8F5E9] px-4 py-3 text-sm font-semibold text-[#1B5E20]">
-            <input {...register("featured")} type="checkbox" />
-            Featured পণ্য
-          </label>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <label className="flex items-center gap-2 rounded-xl bg-[#E8F5E9] px-4 py-3 text-sm font-semibold text-[#1B5E20]">
+              <input {...register("featured")} type="checkbox" />
+              Featured
+            </label>
+            <label className="flex items-center gap-2 rounded-xl bg-[#E8F5E9] px-4 py-3 text-sm font-semibold text-[#1B5E20]">
+              <input {...register("published")} type="checkbox" />
+              Published
+            </label>
+            <label className="flex items-center gap-2 rounded-xl bg-[#E8F5E9] px-4 py-3 text-sm font-semibold text-[#1B5E20]">
+              <input {...register("isActive")} type="checkbox" />
+              Active
+            </label>
+          </div>
           <label className="rounded-xl border border-dashed border-[#2E7D32]/40 p-4 text-sm text-neutral-600">
             ছবি আপলোড করুন
             <input type="file" multiple accept="image/*" onChange={(event) => setFiles(event.target.files)} className="mt-2 block w-full text-sm" />
             {previewCount ? <span className="mt-1 block text-[#2E7D32]">{previewCount}টি ছবি নির্বাচিত</span> : null}
           </label>
+          {editing?.imageRecords?.length ? (
+            <div className="grid grid-cols-3 gap-2">
+              {editing.imageRecords.filter((image) => image.isActive).map((image) => (
+                <div key={image.id} className="relative aspect-square overflow-hidden rounded-xl bg-[#E8F5E9]">
+                  <Image src={image.imageUrl} alt={image.altText || editing.name} fill sizes="120px" className="object-cover" />
+                  <div className="absolute inset-x-1 bottom-1 flex gap-1">
+                    <button type="button" onClick={() => setPrimaryImage(image.id, editing.id)} disabled={pending} className="grid size-8 place-items-center rounded-full bg-white/90 text-[#1B5E20]">
+                      <Star className={`size-4 ${image.isPrimary ? "fill-[#D99600] text-[#D99600]" : ""}`} />
+                    </button>
+                    <button type="button" onClick={() => deleteImage(image.id)} disabled={pending} className="grid size-8 place-items-center rounded-full bg-white/90 text-red-700">
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <button disabled={saving} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#2E7D32] font-semibold text-white disabled:opacity-70">
             {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
             {editing ? "আপডেট করুন" : "যোগ করুন"}
@@ -250,6 +418,7 @@ export function ProductManager() {
         <h2 className="text-lg font-bold text-[#17351a]">পণ্যের তালিকা</h2>
         <div className="mt-4 grid gap-3">
           {loading ? <p className="text-neutral-500">লোড হচ্ছে...</p> : null}
+          {!loading && !products.length ? <p className="text-neutral-500">কোনো পণ্য পাওয়া যায়নি।</p> : null}
           {products.map((product) => {
             const packages = getProductPackages(product);
             return (
@@ -258,7 +427,13 @@ export function ProductManager() {
                   {product.images?.[0] ? <Image src={product.images[0]} alt={product.name} fill sizes="96px" className="object-cover" /> : null}
                 </div>
                 <div>
-                  <h3 className="font-bold text-[#17351a]">{product.name}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-bold text-[#17351a]">{product.name}</h3>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${product.published && product.isActive ? "bg-[#E8F5E9] text-[#1B5E20]" : "bg-neutral-100 text-neutral-600"}`}>
+                      {product.published && product.isActive ? "Published" : "Draft/Inactive"}
+                    </span>
+                    {product.featured ? <span className="rounded-full bg-[#FFF8E1] px-2.5 py-1 text-xs font-bold text-[#9A6A00]">Featured</span> : null}
+                  </div>
                   <p className="text-sm text-neutral-500">{formatCurrency(getStartingPrice(product))} থেকে</p>
                   <p className="line-clamp-1 text-sm text-neutral-600">{product.shortDescription}</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">

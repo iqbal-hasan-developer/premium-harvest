@@ -106,6 +106,7 @@ export function CartDrawer() {
                 subtotal={checkoutSnapshot.subtotal}
                 onCancel={() => setCheckoutSnapshot(null)}
                 onSuccess={handleOrderSuccess}
+                onClose={handleClose}
               />
             ) : items.length ? (
               <>
