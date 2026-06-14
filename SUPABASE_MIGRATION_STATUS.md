@@ -523,3 +523,54 @@ Remaining production tasks:
 - Confirm deployed environment variables contain only Supabase/site values.
 - Run manual QA for storefront, checkout, tracking, contact, and admin flows on the production deployment.
 - Remove any stale Firebase variables from hosting provider settings if they still exist there.
+
+## Production Readiness Audit Phase
+
+Completed in this phase:
+
+- Re-audited environment usage and confirmed only Supabase/site/demo variables are used by application source.
+- Confirmed no Firebase imports or Firebase fallback code remain in application source.
+- Confirmed `lib/data.ts` uses Supabase public reads only, with optional demo data gated behind `NEXT_PUBLIC_ENABLE_DEMO_DATA=true`.
+- Hardened order creation so server-side order item inserts are verified against active Supabase products and active product packages.
+- Order subtotal and item line totals are now derived from verified catalog package prices before inserting into `orders` and `order_items`.
+- Kept customer name, phone, address, non-empty cart, positive quantity, and unique order-number checks in the server order path.
+- Confirmed public order tracking requires both `order_number` and matching `phone`.
+- Confirmed contact form submissions validate name, phone, and message before inserting into Supabase.
+- Confirmed dashboard access requires an authenticated Supabase user with an active `admin_users` row.
+- Confirmed product and gallery uploads validate image MIME type and 5MB max file size before upload.
+- Added a clean public gallery empty state when Supabase has no published gallery images.
+- Moved repeated public business contact values into `siteConfig` for easier future template extraction.
+- Updated `README.md` with Supabase-only setup, required env variables, admin creation, local run, Vercel deploy, and QA notes.
+
+Environment variables intentionally retained:
+
+- `NEXT_PUBLIC_SITE_URL`
+- `NEXT_PUBLIC_WHATSAPP_NUMBER`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_SUPABASE_PRODUCTS_BUCKET`
+- `NEXT_PUBLIC_SUPABASE_GALLERY_BUCKET`
+- `NEXT_PUBLIC_SUPABASE_BANNERS_BUCKET`
+- `NEXT_PUBLIC_ENABLE_DEMO_DATA`
+
+Dependency audit:
+
+- `npm audit` reports 2 moderate vulnerabilities through `next` -> bundled `postcss`.
+- Advisory: PostCSS CSS stringify output issue.
+- Current audit output says no fix is available through a normal non-force install.
+- Do not run `npm audit fix --force`; revisit when a safe Next.js/PostCSS patch release is available.
+
+Validation:
+
+- `npm run lint` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- Production build no longer logs the old Firebase fallback warning.
+
+Remaining production tasks:
+
+- Confirm production Supabase rows and storage buckets contain all live catalog/gallery/admin data.
+- Verify deployed Vercel environment variables match `.env.example` and contain no stale Firebase variables.
+- Run final manual QA on the live deployment after setting production Supabase credentials.
+- Monitor Next.js/PostCSS advisory status and upgrade through the normal dependency policy when a safe fix is available.

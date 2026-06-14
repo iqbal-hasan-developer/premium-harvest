@@ -54,12 +54,12 @@ export function Navbar() {
         </div>
 
         <a
-          href="tel:+8801786333527"
-          aria-label="Call Premium Harvest at +880 1786333527"
+          href={siteConfig.phoneHref}
+          aria-label={`Call Premium Harvest at ${siteConfig.phoneDisplay}`}
           className="inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-[#CFE3C7] bg-[#E8F5E9] px-3 py-2 text-xs font-extrabold leading-none text-[#1B5E20] shadow-sm shadow-green-950/5 transition hover:bg-[#d6edd8] focus:outline-none focus:ring-2 focus:ring-[#2E7D32]/25 lg:hidden min-[390px]:px-3.5 min-[390px]:text-sm"
         >
           <Phone className="size-3.5 shrink-0 min-[390px]:size-4" />
-          <span>+880 1786333527</span>
+          <span>{siteConfig.phoneDisplay}</span>
         </a>
       </nav>
     </header>

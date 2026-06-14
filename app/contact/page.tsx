@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Mail, MapPin, MessageCircle, Phone, ShoppingBag, Truck } from "lucide-react";
 import Image from "next/image";
 import { ContactForm } from "@/components/forms/contact-form";
+import { siteConfig } from "@/lib/constants";
 import { whatsappLink } from "@/utils/format";
 
 export const metadata: Metadata = {
@@ -10,9 +11,9 @@ export const metadata: Metadata = {
 };
 
 const contactItems = [
-  { label: "Phone", value: "+880 1786333527", href: "tel:+8801786333527", icon: Phone },
-  { label: "Email", value: "premiumharvestbd@gmail.com", href: "mailto:premiumharvestbd@gmail.com", icon: Mail },
-  { label: "Location", value: "ঢাকা, বাংলাদেশ", icon: MapPin }
+  { label: "Phone", value: siteConfig.phoneDisplay, href: siteConfig.phoneHref, icon: Phone },
+  { label: "Email", value: siteConfig.email, href: `mailto:${siteConfig.email}`, icon: Mail },
+  { label: "Location", value: siteConfig.address, icon: MapPin }
 ];
 
 const supportCards = [

@@ -5,7 +5,12 @@ export const siteConfig = {
     "বাংলাদেশের প্রিমিয়াম অর্গানিক আম সরাসরি বাগান থেকে আপনার ঘরে।",
   logo: "/Premium Harvest Gloing.png",
   url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+  websiteDisplay: "www.premiumharvestbd.com",
   whatsappNumber: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "8801700000000",
+  phoneDisplay: "+880 1786333527",
+  phoneHref: "tel:+8801786333527",
+  email: "premiumharvestbd@gmail.com",
+  address: "ঢাকা, বাংলাদেশ",
   navItems: [
     { label: "হোম", href: "/" },
     { label: "শপ", href: "/shop" },

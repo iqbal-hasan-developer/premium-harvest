@@ -95,6 +95,28 @@ type SupabaseOrderRow = {
   order_items?: SupabaseOrderItemRow[] | null;
 };
 
+type SupabaseCatalogPackageRow = {
+  id: string;
+  weight: string | null;
+  price: number | string | null;
+  is_active: boolean | null;
+};
+
+type SupabaseCatalogProductRow = {
+  id: string;
+  name: string;
+  slug: string;
+  published: boolean | null;
+  is_active: boolean | null;
+  product_packages?: SupabaseCatalogPackageRow[] | null;
+};
+
+type VerifiedOrderItem = PublicOrderItemInput & {
+  productId: string;
+  productPackageId: string;
+  productSlug: string;
+};
+
 const ORDER_SELECT = `
   id,
   order_number,
@@ -141,6 +163,82 @@ function nullableUuid(value: string | null | undefined) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
     ? value
     : null;
+}
+
+async function verifyOrderItems(inputItems: PublicOrderItemInput[]): Promise<VerifiedOrderItem[]> {
+  if (!inputItems.length) {
+    throw new Error("Order must include at least one item.");
+  }
+
+  const submittedProductIds = inputItems.map((item) => item.productId);
+  const productIds = Array.from(
+    new Set(submittedProductIds.map((item) => nullableUuid(item)).filter((item): item is string => Boolean(item)))
+  );
+
+  if (productIds.length !== new Set(submittedProductIds).size) {
+    throw new Error("One or more order products are not available.");
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select(`
+      id,
+      name,
+      slug,
+      published,
+      is_active,
+      product_packages (
+        id,
+        weight,
+        price,
+        is_active
+      )
+    `)
+    .in("id", productIds);
+
+  if (error) throw new Error(error.message);
+
+  const productsById = new Map(((data || []) as SupabaseCatalogProductRow[]).map((product) => [product.id, product]));
+
+  return inputItems.map((item) => {
+    const productId = nullableUuid(item.productId);
+    const product = productId ? productsById.get(productId) : null;
+
+    if (!product || product.published !== true || product.is_active === false) {
+      throw new Error(`${item.productName || "Product"} is not available.`);
+    }
+
+    if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 99) {
+      throw new Error("Order quantity is not valid.");
+    }
+
+    const packageWeight = item.packageWeight?.trim();
+    const packageRecord = (product.product_packages || []).find(
+      (packageItem) => packageItem.is_active !== false && packageItem.weight === packageWeight
+    );
+
+    if (!packageRecord) {
+      throw new Error(`${product.name} package is not available.`);
+    }
+
+    const packagePrice = toNumber(packageRecord.price);
+
+    if (packagePrice <= 0 || packagePrice !== item.unitPrice) {
+      throw new Error(`${product.name} price has changed. Please refresh and try again.`);
+    }
+
+    return {
+      ...item,
+      productId: product.id,
+      productPackageId: packageRecord.id,
+      productSlug: product.slug,
+      productName: product.name,
+      packageWeight: packageWeight || packageRecord.weight || undefined,
+      unitPrice: packagePrice,
+      lineTotal: packagePrice * item.quantity
+    };
+  });
 }
 
 function mapOrder(row: SupabaseOrderRow): AdminOrder {
@@ -215,7 +313,8 @@ export function normalizeCartItem(item: Omit<CartItem, "image"> & { image?: stri
 
 export async function createSupabaseOrder(input: PublicOrderInput) {
   const supabase = createSupabaseAdminClient();
-  const subtotal = input.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const verifiedItems = await verifyOrderItems(input.items);
+  const subtotal = verifiedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const deliveryCharge = Math.max(0, input.deliveryCharge || 0);
   const total = subtotal + deliveryCharge;
   const orderNumber = await generateOrderNumber();
@@ -243,10 +342,10 @@ export async function createSupabaseOrder(input: PublicOrderInput) {
   if (orderError) throw new Error(orderError.message);
 
   const { error: itemsError } = await supabase.from("order_items").insert(
-    input.items.map((item) => ({
+    verifiedItems.map((item) => ({
       order_id: order.id,
-      product_id: nullableUuid(item.productId),
-      product_package_id: null,
+      product_id: item.productId,
+      product_package_id: item.productPackageId,
       product_slug: item.productSlug || null,
       product_name: item.productName,
       image_url: item.imageUrl || null,

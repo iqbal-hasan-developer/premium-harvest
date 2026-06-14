@@ -15,6 +15,17 @@ const heights = {
 export function LightboxGallery({ images }: { images: GalleryImage[] }) {
   const [active, setActive] = useState<GalleryImage | null>(null);
 
+  if (!images.length) {
+    return (
+      <div className="rounded-3xl border border-[#E8F5E9] bg-[#F7FBF7] p-8 text-center shadow-sm shadow-green-950/5">
+        <p className="text-lg font-black text-[#17351a]">এখনও কোনো ছবি নেই।</p>
+        <p className="mt-2 text-sm font-semibold leading-6 text-neutral-600">
+          গ্যালারি ছবি প্রকাশিত হলে এখানে দেখা যাবে।
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="masonry">

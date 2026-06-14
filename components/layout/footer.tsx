@@ -23,11 +23,11 @@ export function Footer() {
             বাগান থেকে সরাসরি প্রিমিয়াম আম, যত্নসহকারে প্যাকিং ও দ্রুত ডেলিভারি।
           </p>
           <Link
-            href="https://www.premiumharvestbd.com"
+            href={siteConfig.url}
             className="mt-4 inline-flex items-center justify-center gap-2 rounded-full border border-[#CFE3C7] bg-white/80 px-4 py-2 text-sm font-bold text-[#1B5E20] shadow-sm transition hover:border-[#A9D39F] hover:bg-white"
           >
             <Globe2 className="size-4" />
-            www.premiumharvestbd.com
+            {siteConfig.websiteDisplay}
           </Link>
         </div>
         <div>
@@ -58,17 +58,17 @@ export function Footer() {
         <div>
           <h3 className="text-sm font-black uppercase tracking-[0.16em] text-[#1B5E20]">যোগাযোগ</h3>
           <div className="mx-auto mt-4 grid max-w-sm gap-3 text-sm font-semibold text-neutral-600 sm:mx-0">
-            <a href="tel:+8801786333527" className="flex items-center justify-center gap-2.5 rounded-full bg-white/80 px-4 py-2.5 transition hover:text-[#2E7D32] sm:justify-start">
+            <a href={siteConfig.phoneHref} className="flex items-center justify-center gap-2.5 rounded-full bg-white/80 px-4 py-2.5 transition hover:text-[#2E7D32] sm:justify-start">
               <Phone className="size-4 shrink-0 text-[#2E7D32]" />
-              <span>+880 1786333527</span>
+              <span>{siteConfig.phoneDisplay}</span>
             </a>
-            <a href="mailto:premiumharvestbd@gmail.com" className="flex min-w-0 items-center justify-center gap-2.5 rounded-full bg-white/80 px-4 py-2.5 transition hover:text-[#2E7D32] sm:justify-start">
+            <a href={`mailto:${siteConfig.email}`} className="flex min-w-0 items-center justify-center gap-2.5 rounded-full bg-white/80 px-4 py-2.5 transition hover:text-[#2E7D32] sm:justify-start">
               <Mail className="size-4 shrink-0 text-[#2E7D32]" />
-              <span className="break-all">premiumharvestbd@gmail.com</span>
+              <span className="break-all">{siteConfig.email}</span>
             </a>
             <span className="flex items-center justify-center gap-2.5 rounded-full bg-white/80 px-4 py-2.5 sm:justify-start">
               <MapPin className="size-4 shrink-0 text-[#2E7D32]" />
-              <span>ঢাকা, বাংলাদেশ</span>
+              <span>{siteConfig.address}</span>
             </span>
           </div>
         </div>
