@@ -480,3 +480,46 @@ Security behavior:
 - Public tracking uses a server action and the server-only Supabase admin client.
 - `SUPABASE_SERVICE_ROLE_KEY` is not imported by client components.
 - A user only receives order details when both submitted fields match the same order row.
+
+## Firebase Removal Phase
+
+Completed in this phase:
+
+- Removed Firebase fallback reads from `lib/data.ts`.
+- Public product and gallery reads now use Supabase as the production source of truth.
+- Demo storefront data is no longer used by default.
+- Optional local demo data is available only when `NEXT_PUBLIC_ENABLE_DEMO_DATA=true`.
+- Removed legacy unused Firebase admin managers:
+  - `components/admin/gallery-manager.tsx`
+  - `components/admin/orders-manager.tsx`
+- Removed Firebase helper files:
+  - `firebase/admin.ts`
+  - `firebase/client.ts`
+- Removed Firebase project/rules files:
+  - `firebase.json`
+  - `firestore.rules`
+  - `storage.rules`
+- Removed Firebase environment examples from `.env.example`.
+- Removed Firebase Storage image host allow-list entries from `next.config.ts`.
+- Removed `firebase` and `firebase-admin` from `package.json`.
+- Updated `package-lock.json` after package removal.
+- Updated README setup instructions to Supabase-only.
+
+Current production data behavior:
+
+- Supabase is now the source of truth for products, product images, gallery, orders, order items, customer order tracking, contact messages, and admin data.
+- If Supabase products/gallery are empty in production, the public pages show their existing empty states instead of silently using Firebase or demo data.
+- Local demo data requires the explicit `NEXT_PUBLIC_ENABLE_DEMO_DATA=true` flag.
+
+Remaining Firebase references:
+
+- No Firebase imports remain in application source.
+- No Firebase packages remain in `package.json`.
+- Historical migration notes may still mention Firebase to document previous phases.
+
+Remaining production tasks:
+
+- Confirm production Supabase has all required product, package, image, gallery, admin, and settings data.
+- Confirm deployed environment variables contain only Supabase/site values.
+- Run manual QA for storefront, checkout, tracking, contact, and admin flows on the production deployment.
+- Remove any stale Firebase variables from hosting provider settings if they still exist there.

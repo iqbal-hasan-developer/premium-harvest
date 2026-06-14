@@ -22,4 +22,4 @@ In a later migration phase:
 2. Route uploads through server actions or route handlers.
 3. Validate file type, file size, and destination bucket.
 4. Store public image URLs in `product_images`, `gallery`, or `site_settings`.
-5. Keep bucket naming stable so image URLs are easy to migrate from Firebase Storage.
+5. Keep bucket naming stable so image URLs remain predictable across production deployments.
