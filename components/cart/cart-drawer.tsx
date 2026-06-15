@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { CartOrderForm } from "@/components/cart/cart-order-form";
 import { useCart } from "@/components/cart/cart-provider";
+import { trackInitiateCheckout } from "@/lib/analytics/meta-pixel";
 import type { CartItem } from "@/types";
 import { formatBanglaNumber, formatCurrency } from "@/utils/format";
 
@@ -35,7 +36,18 @@ export function CartDrawer() {
   }, [closeCart]);
 
   function startCheckout() {
+    if (!items.length || subtotal <= 0) return;
     setCheckoutSnapshot({ items, subtotal });
+    trackInitiateCheckout({
+      content_ids: items.map((item) => item.productId || item.slug),
+      contents: items.map((item) => ({
+        id: item.productId || item.slug,
+        quantity: item.quantity,
+        item_price: item.selectedPackagePrice
+      })),
+      num_items: items.reduce((total, item) => total + item.quantity, 0),
+      value: subtotal
+    });
   }
 
   function handleOrderSuccess() {

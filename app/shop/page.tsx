@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { ProductSearch } from "@/components/shop/product-search";
 import { getProducts } from "@/lib/data";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "শপ",
-  description: "Premium Harvest-এর সব প্রিমিয়াম অর্গানিক আম দেখুন এবং অর্ডার করুন।"
-};
+  description: "Premium Harvest Ltd-এর প্রিমিয়াম আম, প্যাকেজ সাইজ, দাম ও অর্ডার অপশন দেখুন। বাংলাদেশে মৌসুমি আম সহজে অর্ডার করুন।",
+  path: "/shop"
+});
 
 export default async function ShopPage() {
   const products = await getProducts();

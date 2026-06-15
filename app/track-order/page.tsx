@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { OrderTrackingForm } from "@/components/orders/order-tracking-form";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "অর্ডার ট্র্যাক করুন",
-  description: "অর্ডার নম্বর ও ফোন নম্বর দিয়ে Premium Harvest অর্ডারের স্ট্যাটাস দেখুন।"
-};
+  description: "অর্ডার নম্বর ও ফোন নম্বর দিয়ে Premium Harvest Ltd অর্ডারের বর্তমান স্ট্যাটাস নিরাপদে দেখুন।",
+  path: "/track-order",
+  noIndex: true
+});
 
 type TrackOrderPageProps = {
   searchParams: Promise<{ orderNumber?: string }>;

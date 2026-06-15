@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { CheckCircle2, Leaf, Target } from "lucide-react";
 import Image from "next/image";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "আমাদের গল্প",
   description:
-    "Premium Harvest-এর ব্র্যান্ড গল্প, মিশন, ভিশন এবং অর্গানিক ফার্মিং চর্চা।",
-};
+    "Premium Harvest Ltd-এর ব্র্যান্ড গল্প, নিরাপদ আম সংগ্রহ, বাগান থেকে ঘরে ডেলিভারি এবং প্রিমিয়াম কৃষিপণ্যের অঙ্গীকার।",
+  path: "/about"
+});
 
 export default function AboutPage() {
   return (

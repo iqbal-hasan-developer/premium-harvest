@@ -3,12 +3,14 @@ import { Mail, MapPin, MessageCircle, Phone, ShoppingBag, Truck } from "lucide-r
 import Image from "next/image";
 import { ContactForm } from "@/components/forms/contact-form";
 import { siteConfig } from "@/lib/constants";
+import { buildPageMetadata } from "@/lib/seo";
 import { whatsappLink } from "@/utils/format";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "যোগাযোগ",
-  description: "Premium Harvest অর্ডার, পাইকারি বা যেকোনো প্রশ্নের জন্য যোগাযোগ করুন।"
-};
+  description: "Premium Harvest Ltd অর্ডার, ডেলিভারি, আমের প্যাকেজ, সাপোর্ট বা ব্যবসায়িক প্রশ্নের জন্য যোগাযোগ করুন।",
+  path: "/contact"
+});
 
 const contactItems = [
   { label: "Phone", value: siteConfig.phoneDisplay, href: siteConfig.phoneHref, icon: Phone },

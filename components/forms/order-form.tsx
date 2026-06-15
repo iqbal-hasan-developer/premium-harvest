@@ -6,6 +6,7 @@ import { FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { createOrder } from "@/actions/orders";
 import { Button } from "@/components/ui/button";
+import { trackPurchase } from "@/lib/analytics/meta-pixel";
 import type { Product, ProductPackage } from "@/types";
 import { formatBanglaNumber, formatCurrency } from "@/utils/format";
 
@@ -63,6 +64,22 @@ export function OrderForm({
       }
 
       toast.success(result.orderNumber ? `অর্ডার সফল হয়েছে: ${result.orderNumber}` : result.message);
+      trackPurchase({
+        content_ids: [product.id || product.slug],
+        contents: [
+          {
+            id: product.id || product.slug,
+            quantity,
+            item_price: selectedPackage.price
+          }
+        ],
+        content_name: product.name,
+        content_type: "product",
+        num_items: quantity,
+        order_id: result.orderNumber,
+        order_number: result.orderNumber,
+        value: totalPrice
+      });
       setSuccessOrderNumber(result.orderNumber || "");
     } catch (error) {
       console.error("Failed to create order", error);

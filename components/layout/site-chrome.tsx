@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { MetaPixel } from "@/components/analytics/meta-pixel";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { CartProvider } from "@/components/cart/cart-provider";
 import { FloatingWhatsApp } from "@/components/layout/floating-whatsapp";
@@ -18,6 +19,7 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <CartProvider>
+      <MetaPixel />
       <Navbar />
       <main className="pb-24 lg:pb-0">{children}</main>
       <Footer />

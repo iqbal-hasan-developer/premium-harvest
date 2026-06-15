@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { createContactMessage } from "@/actions/contacts";
 import { SubmitButton } from "@/components/forms/submit-button";
+import { trackLead } from "@/lib/analytics/meta-pixel";
 
 const initialState = { ok: false, message: "" };
 
@@ -14,6 +15,7 @@ export function ContactForm() {
   useEffect(() => {
     if (!state.message) return;
     if (state.ok) {
+      trackLead({ content_name: "Contact Form" });
       toast.success(state.message);
       formRef.current?.reset();
     } else {

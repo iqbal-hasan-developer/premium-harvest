@@ -19,11 +19,24 @@ export const siteConfig = {
     { label: "অর্ডার ট্র্যাক", href: "/track-order" },
     { label: "যোগাযোগ", href: "/contact" }
   ],
+  policyLinks: [
+    { label: "Delivery Policy", href: "/delivery-policy" },
+    { label: "Refund Policy", href: "/refund-policy" },
+    { label: "Privacy Policy", href: "/privacy-policy" },
+    { label: "Terms & Conditions", href: "/terms" },
+    { label: "FAQ", href: "/faq" }
+  ],
   socialLinks: {
     facebook: "#",
     instagram: "#",
     youtube: "#"
   }
+};
+
+export const analyticsConfig = {
+  metaPixelId: process.env.NEXT_PUBLIC_META_PIXEL_ID || "",
+  currency: "BDT",
+  enableAnalytics: Boolean(process.env.NEXT_PUBLIC_META_PIXEL_ID)
 };
 
 export const imageUrls = {

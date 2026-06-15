@@ -574,3 +574,24 @@ Remaining production tasks:
 - Verify deployed Vercel environment variables match `.env.example` and contain no stale Firebase variables.
 - Run final manual QA on the live deployment after setting production Supabase credentials.
 - Monitor Next.js/PostCSS advisory status and upgrade through the normal dependency policy when a safe fix is available.
+
+## Meta Pixel Client Tracking Phase
+
+Completed in this phase:
+
+- Added optional client-side Meta Pixel tracking behind `NEXT_PUBLIC_META_PIXEL_ID`.
+- Added a browser-safe Meta Pixel utility that no-ops when no Pixel ID is configured.
+- Added public route `PageView` tracking through the App Router.
+- Added eCommerce events for product views, add to cart, checkout start, successful purchases, and successful contact leads.
+- Purchase tracking fires only after Supabase order creation returns success.
+- Failed order and contact submissions do not fire success events.
+- Updated `.env.example`, README setup notes, and the privacy policy.
+
+Not included in this phase:
+
+- Meta Conversions API.
+- Server-side event deduplication.
+
+Recommended next phase:
+
+Add Meta Conversions API server-side events after the client-side Pixel is verified in production, using event IDs for deduplication.

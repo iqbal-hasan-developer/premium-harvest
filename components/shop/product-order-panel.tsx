@@ -2,9 +2,10 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, MessageCircle, Minus, Plus, ShoppingBag, ShoppingCart, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/cart/cart-provider";
 import { OrderForm } from "@/components/forms/order-form";
+import { trackAddToCart, trackViewContent } from "@/lib/analytics/meta-pixel";
 import type { Product, ProductPackage } from "@/types";
 import { formatBanglaNumber, formatCurrency, getProductPackages, whatsappLink } from "@/utils/format";
 
@@ -29,6 +30,15 @@ export function ProductOrderPanel({ product }: ProductOrderPanelProps) {
   const totalPrice = subtotal + deliveryCharge;
   const whatsappMessage = `${product.name} অর্ডার করতে চাই। প্যাকেজ: ${selectedPackage.weight}, পরিমাণ: ${formatBanglaNumber(quantity)}টি, মোট: ${formatCurrency(totalPrice)}।`;
 
+  useEffect(() => {
+    trackViewContent({
+      content_ids: [product.id || product.slug],
+      content_name: product.name,
+      content_type: "product",
+      value: product.price
+    });
+  }, [product.id, product.name, product.price, product.slug]);
+
   function handleAddToCart() {
     addItem({
       productId: product.id,
@@ -38,6 +48,13 @@ export function ProductOrderPanel({ product }: ProductOrderPanelProps) {
       selectedPackageWeight: selectedPackage.weight,
       selectedPackagePrice: selectedPackage.price,
       quantity
+    });
+    trackAddToCart({
+      content_ids: [product.id || product.slug],
+      content_name: product.name,
+      content_type: "product",
+      value: selectedPackage.price * quantity,
+      num_items: quantity
     });
   }
 

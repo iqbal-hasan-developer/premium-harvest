@@ -1,15 +1,13 @@
-"use client";
+import type { Metadata } from "next";
+import { DashboardClientShell } from "@/components/admin/dashboard-client-shell";
 
-import { AuthGuard } from "@/components/admin/auth-guard";
-import { DashboardShell } from "@/components/admin/dashboard-shell";
-import { AuthProvider } from "@/hooks/use-auth";
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false
+  }
+};
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <AuthProvider>
-      <AuthGuard>
-        <DashboardShell>{children}</DashboardShell>
-      </AuthGuard>
-    </AuthProvider>
-  );
+  return <DashboardClientShell>{children}</DashboardClientShell>;
 }

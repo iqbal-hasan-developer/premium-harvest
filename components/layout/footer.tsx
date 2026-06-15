@@ -73,6 +73,15 @@ export function Footer() {
           </div>
         </div>
       </div>
+      <div className="container-page border-t border-[#DDEEDD] py-4">
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-center text-xs font-bold text-neutral-600 sm:justify-start">
+          {siteConfig.policyLinks.map((item) => (
+            <Link key={item.href} href={item.href} className="transition hover:text-[#2E7D32]">
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </div>
       <div className="border-t border-[#DDEEDD] px-4 pb-28 pt-5 text-center text-xs font-semibold text-neutral-500 lg:pb-5">
         © 2026 Premium Harvest Ltd. সর্বস্বত্ব সংরক্ষিত।
       </div>

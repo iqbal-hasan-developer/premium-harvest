@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, Minus, Plus, ShoppingCart, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/cart/cart-provider";
+import { trackAddToCart } from "@/lib/analytics/meta-pixel";
 import type { Product } from "@/types";
 import { formatBanglaNumber, formatCurrency, getProductPackages } from "@/utils/format";
 
@@ -51,6 +52,13 @@ export function ProductCardPackageSelector({ product, open, onClose }: ProductCa
       selectedPackageWeight: selectedPackage.weight,
       selectedPackagePrice: selectedPackage.price,
       quantity
+    });
+    trackAddToCart({
+      content_ids: [product.id || product.slug],
+      content_name: product.name,
+      content_type: "product",
+      value: selectedPackage.price * quantity,
+      num_items: quantity
     });
     onClose();
   }

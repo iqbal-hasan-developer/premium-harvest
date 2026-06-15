@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { createCartOrder } from "@/actions/orders";
+import { trackPurchase } from "@/lib/analytics/meta-pixel";
 import type { CartItem } from "@/types";
 import { formatBanglaNumber, formatCurrency } from "@/utils/format";
 
@@ -41,8 +42,20 @@ export function CartOrderForm({ items, subtotal, onCancel, onSuccess, onClose }:
   useEffect(() => {
     if (!state.ok || successHandled.current) return;
     successHandled.current = true;
+    trackPurchase({
+      content_ids: items.map((item) => item.productId || item.slug),
+      contents: items.map((item) => ({
+        id: item.productId || item.slug,
+        quantity: item.quantity,
+        item_price: item.selectedPackagePrice
+      })),
+      num_items: items.reduce((total, item) => total + item.quantity, 0),
+      order_id: state.orderNumber,
+      order_number: state.orderNumber,
+      value: subtotal
+    });
     onSuccess();
-  }, [onSuccess, state.ok]);
+  }, [items, onSuccess, state.ok, state.orderNumber, subtotal]);
 
   if (state.ok) {
     return (

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductOrderPanel } from "@/components/shop/product-order-panel";
 import { ProductGallery } from "@/components/shop/product-gallery";
+import { siteConfig } from "@/lib/constants";
 import { getProductBySlug, getProducts } from "@/lib/data";
 import { formatCurrency, getStartingPrice } from "@/utils/format";
 
@@ -18,13 +19,36 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const { slug } = await params;
   const product = await getProductBySlug(slug);
   if (!product) return {};
+  const url = `${siteConfig.url}/shop/${product.slug}`;
+
   return {
     title: product.name,
     description: product.shortDescription,
+    alternates: {
+      canonical: url
+    },
     openGraph: {
-      title: product.name,
+      title: `${product.name} | ${siteConfig.name}`,
       description: product.shortDescription,
-      images: product.images.slice(0, 1)
+      url,
+      siteName: siteConfig.name,
+      locale: "bn_BD",
+      type: "website",
+      images: product.images.length
+        ? product.images.slice(0, 1)
+        : [
+            {
+              url: "/og.svg",
+              width: 1200,
+              height: 630,
+              alt: `${siteConfig.name} mango`
+            }
+          ]
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: product.name,
+      description: product.shortDescription
     }
   };
 }

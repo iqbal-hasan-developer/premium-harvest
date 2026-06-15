@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { LightboxGallery } from "@/components/gallery/lightbox-gallery";
 import { getGalleryImages } from "@/lib/data";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "গ্যালারি",
-  description: "Premium Harvest বাগান, প্যাকিং এবং প্রিমিয়াম আমের গ্যালারি।"
-};
+  description: "Premium Harvest Ltd বাগান, আম সংগ্রহ, প্যাকেজিং ও প্রিমিয়াম mango delivery অভিজ্ঞতার ছবি দেখুন।",
+  path: "/gallery"
+});
 
 export default async function GalleryPage() {
   const images = await getGalleryImages();

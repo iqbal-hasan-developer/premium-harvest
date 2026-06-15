@@ -11,6 +11,7 @@ Copy `.env.example` to `.env.local` and fill in the values for your Supabase pro
 ```bash
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
 NEXT_PUBLIC_WHATSAPP_NUMBER=8801700000000
+NEXT_PUBLIC_META_PIXEL_ID=
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
@@ -23,6 +24,25 @@ NEXT_PUBLIC_ENABLE_DEMO_DATA=false
 `SUPABASE_SERVICE_ROLE_KEY` is server-only. Do not expose it in client code, browser bundles, GitHub, or public logs.
 
 `NEXT_PUBLIC_ENABLE_DEMO_DATA` is optional and should stay `false` in production.
+
+`NEXT_PUBLIC_META_PIXEL_ID` is optional. Leave it blank to disable Meta Pixel without breaking local development or production builds.
+
+## Meta Pixel Tracking
+
+Client-side Meta Pixel tracking is enabled only when `NEXT_PUBLIC_META_PIXEL_ID` is set.
+
+Tracked events:
+
+- `PageView` on initial public page load and public route changes.
+- `ViewContent` on product detail pages.
+- `AddToCart` after a package is added to the cart.
+- `InitiateCheckout` when the cart checkout form opens.
+- `Purchase` only after Supabase order creation succeeds.
+- `Lead` after a contact form submission succeeds.
+
+To test, set `NEXT_PUBLIC_META_PIXEL_ID` in `.env.local`, run the app, then verify events with the Meta Pixel Helper browser extension. Leave the variable blank to confirm the site has no Pixel errors when tracking is disabled.
+
+Meta Conversions API is not included in this phase. It can be added later for stronger server-side tracking and event deduplication.
 
 ## Supabase Setup
 
